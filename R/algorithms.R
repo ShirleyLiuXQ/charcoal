@@ -372,6 +372,7 @@ cpreg <- function(X, Y, lambda=NA, sigma=NULL, burnIn=0,
   }
 
   cp <- which.max(stats[(idx_begin:idx_end)]) +idx_begin - 1
+  # indexing in R starts from 1
   return(list(cp=cp, stats=stats, Q=Q, besidesBurned=c(idx_begin,idx_end)))
 }
 
