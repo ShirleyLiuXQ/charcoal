@@ -114,7 +114,7 @@ simulateMultiCP <- function(n, tau, p, k, rho,
     X[cbind(1:(n), 1:p)] <- 1
   } else if ('t'==design) {
     X <- matrix(rt(n*p,df=design.df)/sqrt(design.df/(design.df-2)),nrow=n)
-  } else { X <- matrix(rnorm(n*p), nrow=n) }
+  } else { X <- matrix(rnorm(n*p), nrow=n) } # default is Gaussian
 
   if (error == 't'){
     e <- rt(n, df=df) / sqrt(df/(df-2))
@@ -135,7 +135,8 @@ simulateMultiCP <- function(n, tau, p, k, rho,
   if (no_change!=1) theta_mat <- apply(theta_mat, 2, sample)
   theta_mat_cumsum <- t(apply(cbind(0, theta_mat), 1, cumsum))
   beta_idx <- rbind(1:n, matrix(-Inf,nrow=1,ncol=n))
-  beta_idx <- apply(beta_idx, 2, {function (v) c(v[1], 1 + sum(v[1] > cps))})
+  beta_idx <- apply(beta_idx, 2, {function (v) c(v[1], 1 + sum(v[1] > c
+  ps))})
   beta <- theta_mat_cumsum[, beta_idx[2,]] + rnorm(p)*max(rho,1)
 
 
@@ -346,7 +347,10 @@ cpreg <- function(X, Y, lambda=NA, sigma=NULL, burnIn=0,
         W <- W + outer(A[,t], X[t,])
         col_scales[,t] <- sqrt(colSums(W^2))
       }
-      Q <- X[-n, ] * colSums(A[, -n] * as.vector(Z))
+      # This line below sometimes causes error
+      # 'x' must be an array of at least two dimensions,
+      # esp when the setting is challenging
+      Q <- X[-n, ] * colSums(A[, -n] * as.vector(Z)) 
       Q <- t(apply(Q, 2, cumsum)) / col_scales
     }
 
@@ -431,6 +435,7 @@ cpreg <- function(X, Y, lambda=NA, sigma=NULL, burnIn=0,
 #' not_result <- not_cpreg(X,Y, thresh=10)
 #' # or  not_result <- cpreg(X,Y,thresh=NULL,no_intervals=200,burnIn=0.05,
 #' #                         cpreg_method='proj')
+#' NOT stands for narrowest-over-threshold
 not_cpreg <- function(X, Y, thresh=NULL,
                       no_intervals = floor(nrow(X)/5), burnIn=0, sigma=NULL,
                       verbose=FALSE, cpreg_method='lasso_bic', seed=NULL) {
@@ -490,6 +495,9 @@ not_cpreg <- function(X, Y, thresh=NULL,
   if (verbose) print(ret_initial)
 
   # Stage 2: perform tests on each identified changepoint
+  # For each changepoint i, this involves isolating the largest possible 
+  # interval containing only changepoint i, and then remove the changepoint
+  # if the test statistic is below the threshold
   ret_tested <- ret_initial
   for (i in order(ret_initial$stats)){
     cp <- ret_initial$cps[i]
@@ -528,6 +536,10 @@ not_cpreg <- function(X, Y, thresh=NULL,
   if (verbose) print(ret_tested)
 
   # Stage 3: refine the change point estimate via midpoint refinement
+  # For each changepoint, extract the segment between the midpoint between 
+  # current changepoint and previous one, and the midpoint between current
+  # changepoint and next one. And then run cpreg (for single changepoint detection) 
+  # on the segment
   ret_refined <- ret_tested
   for (i in order(ret_tested$stats, decreasing=TRUE)) {
     cp <- ret_refined$cps[i]
@@ -543,7 +555,7 @@ not_cpreg <- function(X, Y, thresh=NULL,
       tmp <- cpreg(X[(before.mid+1):after.mid, ],
                    Y[(before.mid+1):after.mid],
                    burnIn=0, sigma=sigma, aggregate_method=cpreg_method)
-      ret_refined$cps[i] <- tmp$cp + before.mid
+      ret_refined$cps[i] <- tmp$cp + before.mid # error: replacement has length zero
       ret_refined$stats[i] <- tmp$stats[tmp$cp]
       if (verbose) print(paste0('refining cp at ', cp, ' to new cp at ',
                                 ret_refined$cps[i]))
@@ -555,6 +567,9 @@ not_cpreg <- function(X, Y, thresh=NULL,
   if (verbose) print(ret_refined)
 
   # Stage 4: second refinement
+  # For each changepoint, extract the segment between the previous changepoint and 
+  # the next changepoint, and then run cpreg (for single changepoint detection)
+  # on the segment
   ret_final <- ret_refined
 
   for (i in order(ret_tested$stats, decreasing=TRUE)) {
