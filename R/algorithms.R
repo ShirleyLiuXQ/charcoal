@@ -535,36 +535,40 @@ not_cpreg <- function(X, Y, thresh=NULL,
   }
   if (verbose) print(ret_tested)
 
+  ### TODO: Stage 3 and 4 are not essential so could be removed.
+
   # Stage 3: refine the change point estimate via midpoint refinement
   # For each changepoint, extract the segment between the midpoint between 
   # current changepoint and previous one, and the midpoint between current
   # changepoint and next one. And then run cpreg (for single changepoint detection) 
   # on the segment
   ret_refined <- ret_tested
-  for (i in order(ret_tested$stats, decreasing=TRUE)) {
-    cp <- ret_refined$cps[i]
-    before.idx <- max(ret_refined$cps[ret_refined$cps < cp], 0)
-    after.idx <- min(ret_refined$cps[ret_refined$cps > cp], n)
-    before.mid <- floor((cp + before.idx) / 2)
-    after.mid <- floor((cp + after.idx) / 2)
+  # for (i in order(ret_tested$stats, decreasing=TRUE)) {
+  #   cp <- ret_refined$cps[i]
+  #   before.idx <- max(ret_refined$cps[ret_refined$cps < cp], 0)
+  #   after.idx <- min(ret_refined$cps[ret_refined$cps > cp], n)
+  #   before.mid <- floor((cp + before.idx) / 2)
+  #   after.mid <- floor((cp + after.idx) / 2)
 
-    if (verbose) print(paste0('midpoint refinement interval (',
-                              before.mid, ', ', after.mid, ']'))
+  #   if (verbose) print(paste0('midpoint refinement interval (',
+  #                             before.mid, ', ', after.mid, ']'))
 
-    if (after.mid - before.mid >= (1 + burnIn) * p) {
-      tmp <- cpreg(X[(before.mid+1):after.mid, ],
-                   Y[(before.mid+1):after.mid],
-                   burnIn=0, sigma=sigma, aggregate_method=cpreg_method)
-      ret_refined$cps[i] <- tmp$cp + before.mid # error: replacement has length zero
-      ret_refined$stats[i] <- tmp$stats[tmp$cp]
-      if (verbose) print(paste0('refining cp at ', cp, ' to new cp at ',
-                                ret_refined$cps[i]))
-    } else {
-      ret_refined$stats[i] <- 0
-      if (verbose) print('not big enough interval, skip first refinement')
-    }
-  }
-  if (verbose) print(ret_refined)
+  #   if (after.mid - before.mid >= (1 + burnIn) * p) {
+  #     tmp <- cpreg(X[(before.mid+1):after.mid, ],
+  #                  Y[(before.mid+1):after.mid],
+  #                  burnIn=0, sigma=sigma, aggregate_method=cpreg_method)
+  #     ret_refined$cps[i] <- tmp$cp + before.mid # error: replacement has length zero
+  #     # implies that cpreg removed the chgpt
+  #     ret_refined$stats[i] <- tmp$stats[tmp$cp]
+  #     if (verbose) print(paste0('refining cp at ', cp, ' to new cp at ',
+  #                               ret_refined$cps[i]))
+  #   } else {
+  #     ret_refined$stats[i] <- 0
+  #     if (verbose) print('not big enough interval, skip first refinement')
+  #   }
+  # }
+  # if (verbose) print(ret_refined)
+  print('skipping midpoint refinement')
 
   # Stage 4: second refinement
   # For each changepoint, extract the segment between the previous changepoint and 
@@ -572,24 +576,25 @@ not_cpreg <- function(X, Y, thresh=NULL,
   # on the segment
   ret_final <- ret_refined
 
-  for (i in order(ret_tested$stats, decreasing=TRUE)) {
-    cp <- ret_final$cps[i]
-    burnInLen <- min(10, floor(burnIn*n))
-    before.idx <- max(ret_final$cps[ret_final$cps < cp] + burnInLen, 0)
-    after.idx <- min(ret_final$cps[ret_final$cps > cp] - burnInLen, n)
-    if (after.idx - before.idx >= (1+burnIn) * p) {
-      tmp <- cpreg(X[(before.idx+1):after.idx,],
-                   Y[(before.idx+1):after.idx],
-                   burnIn=burnIn, sigma=sigma, aggregate_method = cpreg_method)
-      ret_final$cps[i] <- tmp$cp + before.idx
-      ret_final$stats[i] <- tmp$stats[tmp$cp]
-      if (verbose) print(paste('refining cp at', cp, 'to', ret_final$cps[i]))
-    } else {
-      ret_final$stats[i] <- 0
-      if (verbose) print('not big enough interval, skip second refinement')
-    }
-  }
-  if (verbose) print(ret_final)
+  # for (i in order(ret_tested$stats, decreasing=TRUE)) {
+  #   cp <- ret_final$cps[i]
+  #   burnInLen <- min(10, floor(burnIn*n))
+  #   before.idx <- max(ret_final$cps[ret_final$cps < cp] + burnInLen, 0)
+  #   after.idx <- min(ret_final$cps[ret_final$cps > cp] - burnInLen, n)
+  #   if (after.idx - before.idx >= (1+burnIn) * p) {
+  #     tmp <- cpreg(X[(before.idx+1):after.idx,],
+  #                  Y[(before.idx+1):after.idx],
+  #                  burnIn=burnIn, sigma=sigma, aggregate_method = cpreg_method)
+  #     ret_final$cps[i] <- tmp$cp + before.idx
+  #     ret_final$stats[i] <- tmp$stats[tmp$cp]
+  #     if (verbose) print(paste('refining cp at', cp, 'to', ret_final$cps[i]))
+  #   } else {
+  #     ret_final$stats[i] <- 0
+  #     if (verbose) print('not big enough interval, skip second refinement')
+  #   }
+  # }
+  # if (verbose) print(ret_final)
+  print('skipping second refinement')
 
   return(list(cps=ret_final$cps, initial=ret_initial, tested=ret_tested,
               refined=ret_refined, final=ret_final))
