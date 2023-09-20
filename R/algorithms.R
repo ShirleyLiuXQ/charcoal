@@ -135,8 +135,7 @@ simulateMultiCP <- function(n, tau, p, k, rho,
   if (no_change!=1) theta_mat <- apply(theta_mat, 2, sample)
   theta_mat_cumsum <- t(apply(cbind(0, theta_mat), 1, cumsum))
   beta_idx <- rbind(1:n, matrix(-Inf,nrow=1,ncol=n))
-  beta_idx <- apply(beta_idx, 2, {function (v) c(v[1], 1 + sum(v[1] > c
-  ps))})
+  beta_idx <- apply(beta_idx, 2, {function (v) c(v[1], 1 + sum(v[1] > cps))})
   beta <- theta_mat_cumsum[, beta_idx[2,]] + rnorm(p)*max(rho,1)
 
 
